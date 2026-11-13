@@ -1,0 +1,22 @@
+{
+  "name": "campus-starmap-netlify",
+  "version": "1.0.0",
+  "description": "校招星图 · Netlify 线上审批版：Netlify Functions + Netlify Blobs，按省份浏览中国校招企业，访问需管理员实时审批授权。",
+  "scripts": {
+    "dev": "netlify dev",
+    "deploy": "netlify deploy --prod",
+    "test": "node test/e2e.js",
+    "test:dom": "node test/dom.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.9"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
