@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="校招星图 · 审批制中国校招信息地图：按省份查看开放校招的企业、岗位与官方投递入口。">
+<title>校招星图 · 中国校招信息地图</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l3.2 9.4L29 14l-9.8 2.6L16 26l-3.2-9.4L3 14l9.8-2.6z' fill='%2338d4ff'/%3E%3C/svg%3E">
+</head>
+<body class="locked">
+<canvas id="stars"></canvas>
+<div class="aurora"></div>
+<div class="grain"></div>
+
+<!-- 门禁 -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38d4ff"/><stop offset="1" stop-color="#8f7bff"/></linearGradient></defs><path d="M16 2l3.2 9.4L29 14l-9.8 2.6L16 26l-3.2-9.4L3 14l9.8-2.6z" fill="url(#lg2)"/><circle cx="25" cy="25" r="2.4" fill="#ffc24b"/></svg>
+      <div><span class="brand-name">校招星图</span><span class="brand-sub">CAMPUS STARMAP · 线上审批版</span></div>
+    </div>
+    <div class="gate-lock">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#ffc24b" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+      <div><b>本站内容需管理员授权后查看</b>提交访问申请 → 管理员在后台同意 → 你这边自动解锁（或凭授权码进入）。申请与审批实时同步，无需来回转发文件。</div>
+    </div>
+    <div class="gate-steps">
+      <div class="gate-step"><b>① 提交申请</b>填写称呼与联系方式，一键提交</div>
+      <div class="gate-step"><b>② 等待审批</b>管理员在后台实时看到并同意</div>
+      <div class="gate-step"><b>③ 自动解锁</b>通过后本页自动进入，或输入授权码</div>
+    </div>
+    <div class="gate-tabs">
+      <button class="gate-tab active" data-gate="apply" type="button">申请访问</button>
+      <button class="gate-tab" data-gate="unlock" type="button">已有授权码</button>
+      <button class="gate-tab" data-gate="admin" type="button">管理员入口</button>
+    </div>
+    <div class="gate-panel on" id="gate-apply">
+      <div class="form-grid">
+        <div class="form-row"><label class="form-label" for="gName">你的称呼 *</label><input class="form-input" id="gName" type="text" placeholder="如：张同学" maxlength="40"></div>
+        <div class="form-row"><label class="form-label" for="gContact">联系方式 *</label><input class="form-input" id="gContact" type="text" placeholder="微信号 / 手机号 / 邮箱" maxlength="80"></div>
+        <div class="form-row full"><label class="form-label" for="gNote">申请说明（可选）</label><input class="form-input" id="gNote" type="text" placeholder="如：2027 届应届生，想看广东校招" maxlength="200"></div>
+      </div>
+      <div class="gate-actions"><button class="btn btn-primary" id="gApplyBtn" type="button">提交访问申请</button></div>
+      <div class="poll-status" id="gPollStatus" hidden><span class="poll-dot"></span><span id="gPollText">已提交，等待管理员审批…通过后本页将自动解锁</span></div>
+      <div class="gate-msg" id="gApplyMsg"></div>
+    </div>
+    <div class="gate-panel" id="gate-unlock">
+      <div class="form-grid">
+        <div class="form-row full"><label class="form-label" for="gKey">管理员发放的授权码 *</label><input class="form-input" id="gKey" type="text" placeholder="粘贴授权码（以 XK- 开头）" autocomplete="off"></div>
+      </div>
+      <div class="gate-actions"><button class="btn btn-primary" id="gUnlockBtn" type="button">验证并解锁全站</button></div>
+      <div class="gate-msg" id="gUnlockMsg"></div>
+    </div>
+    <div class="gate-panel" id="gate-admin">
+      <div id="gAdminSetup" hidden>
+        <p class="gate-msg" style="margin-top:0">首次使用请设置管理员口令（至少 6 位）。设置后即可审批访问申请、管理岗位。</p>
+        <div class="form-grid">
+          <div class="form-row"><label class="form-label" for="gPass1">设置口令 *</label><input class="form-input" id="gPass1" type="password" placeholder="至少 6 位" autocomplete="new-password"></div>
+          <div class="form-row"><label class="form-label" for="gPass2">确认口令 *</label><input class="form-input" id="gPass2" type="password" placeholder="再输入一次" autocomplete="new-password"></div>
+        </div>
+        <div class="gate-actions"><button class="btn btn-primary" id="gSetupBtn" type="button">设置口令并进入管理</button></div>
+      </div>
+      <div id="gAdminLogin" hidden>
+        <div class="form-grid">
+          <div class="form-row full"><label class="form-label" for="gPass">管理员口令 *</label><input class="form-input" id="gPass" type="password" placeholder="输入管理员口令" autocomplete="current-password"></div>
+        </div>
+        <div class="gate-actions"><button class="btn btn-primary" id="gLoginBtn" type="button">登录管理后台</button></div>
+      </div>
+      <div class="gate-msg" id="gAdminMsg"></div>
+    </div>
+    <div class="gate-foot">线上版：申请、审批与授权由服务器统一保存，多人实时共享；管理员作废授权后对方立即失效。请妥善保管管理员口令，并通过 HTTPS 正式部署。</div>
+  </div>
+</div>
+
+<!-- 导航 -->
+<header>
+  <div class="nav-inner">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38d4ff"/><stop offset="1" stop-color="#8f7bff"/></linearGradient></defs><path d="M16 2l3.2 9.4L29 14l-9.8 2.6L16 26l-3.2-9.4L3 14l9.8-2.6z" fill="url(#lg)"/><circle cx="25" cy="25" r="2.4" fill="#ffc24b"/></svg>
+      <div><span class="brand-name">校招星图</span><span class="brand-sub">CAMPUS STARMAP</span></div>
+    </div>
+    <nav>
+      <button data-view="map" class="active">地图总览</button>
+      <button data-view="lib">企业总库</button>
+      <button data-view="fav">我的收藏</button>
+      <button data-view="admin" id="navAdmin" hidden>岗位管理</button>
+      <button data-view="access" id="navAccess" hidden>访问审批</button>
+    </nav>
+    <div class="nav-right">
+      <span class="badge online" id="onlineBadge">● 实时在线</span>
+      <span class="badge role-member" id="roleBadge">访客</span>
+      <button class="btn-log" id="logBtn" hidden>更新日志</button>
+      <button class="btn-log" id="exitBtn" hidden>退出</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 地图总览 -->
+  <section class="view on" id="view-map">
+    <div class="hero">
+      <div>
+        <h1>点亮你的 <em>校招星图</em></h1>
+        <p>一张中国地图，看清各省正在开放校招的企业。点省份 → 看企业 → 直达官方招聘入口，岗位由管理员实时上架更新。</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b id="statProv">0</b><span>覆盖省份</span></div>
+        <div class="stat"><b id="statCo">0</b><span>校招企业</span></div>
+        <div class="stat"><b id="statJob">0</b><span>在招岗位</span></div>
+      </div>
+    </div>
+    <div class="notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#38d4ff" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg>
+      <span>信息来自<b>微信公众号、企业官网 / 上市公司公告、高校就业网与公共招聘平台</b>等公开渠道，由管理员维护上架；「已核实」为官方入口，「公开转载」为公告原文链接。投递前请以企业官方最新公告为准。</span>
+    </div>
+    <div class="map-layout">
+      <div class="map-card">
+        <div class="map-head">
+          <span class="map-title">全国校招热力图</span>
+          <div class="legend"><span>岗位少</span><span class="legend-bar"></span><span>岗位多</span></div>
+        </div>
+        <div class="map-wrap" id="mapWrap">
+          <svg id="chinaMap" role="img" aria-label="中国校招热力地图"></svg>
+          <div id="mapTip"></div>
+        </div>
+        <div class="prov-chips" id="provChips"></div>
+      </div>
+      <aside class="side-panel">
+        <div class="panel-head">
+          <h2 id="panelTitle">全国速览</h2>
+          <div class="panel-sub" id="panelSub">点击地图省份或下方标签，查看该省校招企业</div>
+        </div>
+        <div class="panel-filters">
+          <select id="pNature" aria-label="按企业性质筛选"><option value="">全部性质</option></select>
+          <select id="pIndustry" aria-label="按行业筛选"><option value="">全部行业</option></select>
+        </div>
+        <div class="panel-list" id="panelList"></div>
+        <div class="panel-foot" id="panelFoot"></div>
+      </aside>
+    </div>
+    <div class="ticker">
+      <div class="ticker-label"><i></i>校招动态</div>
+      <div class="ticker-view"><div class="ticker-track" id="tickerTrack"></div></div>
+    </div>
+  </section>
+
+  <!-- 企业总库 -->
+  <section class="view" id="view-lib">
+    <div class="hero"><div><h1>企业总库</h1><p>搜索、筛选、排序，找到目标企业后点击查看岗位与官方招聘入口。</p></div></div>
+    <div class="lib-bar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="libSearch" type="search" placeholder="搜索企业 / 岗位 / 城市…" aria-label="搜索企业、岗位或城市">
+      </div>
+      <select id="libProv" aria-label="按省份筛选"><option value="">全部省份</option></select>
+      <select id="libNature" aria-label="按企业性质筛选"><option value="">全部性质</option></select>
+      <select id="libIndustry" aria-label="按行业筛选"><option value="">全部行业</option></select>
+      <select id="libSort" aria-label="排序方式"><option value="jobs">岗位数优先</option><option value="new">最新上架</option><option value="name">名称排序</option><option value="ddl">最早截止</option></select>
+    </div>
+    <div class="lib-count" id="libCount"></div>
+    <div class="lib-grid" id="libGrid"></div>
+    <div class="empty-state" id="libEmpty" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>
+      <p>没有匹配的企业，换个关键词或清空筛选试试</p>
+      <button id="libReset">清空全部筛选</button>
+    </div>
+  </section>
+
+  <!-- 我的收藏 -->
+  <section class="view" id="view-fav">
+    <div class="hero"><div><h1>我的收藏</h1><p>收藏的岗位保存在当前浏览器本地，投递截止前记得去官网完成申请。</p></div></div>
+    <div id="favList"></div>
+    <div class="empty-state" id="favEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.3 1.2 6.1L12 17l-5.6 3 1.2-6.1L3 9.6l6.3-.8z"/></svg>
+      <p>还没有收藏岗位。打开任意企业详情，点击岗位右上角的 ☆ 即可收藏</p>
+      <button id="favGo">去地图逛逛</button>
+    </div>
+  </section>
+
+  <!-- 岗位管理 -->
+  <section class="view" id="view-admin">
+    <div class="hero"><div><h1>岗位管理台</h1><p>实时维护企业与岗位：新增、编辑、上架 / 下架即时生效，所有访客的地图与总库同步刷新；支持 JSON 批量导入导出。</p></div></div>
+    <div class="admin-stats" id="adminStats"></div>
+    <div class="admin-bar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="adminSearch" type="search" placeholder="搜索岗位 / 企业…" aria-label="搜索岗位或企业">
+      </div>
+      <select id="adminStatus" aria-label="按状态筛选"><option value="">全部状态</option><option value="on">在招上架</option><option value="off">已下架</option><option value="expired">已截止</option></select>
+      <button class="btn btn-primary" id="addCoBtn">＋ 新增企业</button>
+      <button class="btn btn-primary" id="addJobBtn">＋ 新增岗位</button>
+      <button class="btn btn-ghost" id="importBtn">导入 JSON</button>
+      <button class="btn btn-ghost" id="exportBtn">导出 JSON</button>
+      <button class="btn btn-warn" id="resetBtn">重置初始数据</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="bulk-bar" id="bulkBar">
+      <span id="bulkCount"></span>
+      <button class="btn btn-ghost btn-sm" id="bulkOn">批量上架</button>
+      <button class="btn btn-ghost btn-sm" id="bulkOff">批量下架</button>
+      <button class="btn btn-danger btn-sm" id="bulkDel">批量删除</button>
+      <button class="btn btn-ghost btn-sm" id="bulkClear">取消选择</button>
+    </div>
+    <div class="co-strip" id="coStrip" aria-label="企业快捷编辑条"></div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr>
+          <th><input type="checkbox" id="selAll" aria-label="全选当前列表"></th>
+          <th>岗位</th><th>企业</th><th>省份</th><th>类别 / 城市</th><th>截止</th><th>状态（点击切换）</th><th>更新时间</th><th>操作</th>
+        </tr></thead>
+        <tbody id="adminBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 访问审批 -->
+  <section class="view" id="view-access">
+    <div class="hero"><div><h1>访问审批</h1><p>管理谁可以看到本站内容：访客提交申请后你会实时看到，点「同意」对方即自动解锁；也可复制授权码发给对方，或随时作废授权。</p></div></div>
+    <div class="admin-stats" id="accessStats"></div>
+    <div class="access-card">
+      <h3>访问申请</h3>
+      <div class="hint">访客在本页「申请访问」提交后会实时出现在这里。同意后对方页面自动解锁；「复制授权码」可手动发给对方备用。</div>
+      <div class="gate-actions" style="margin-top:0;margin-bottom:8px">
+        <button class="btn btn-ghost" id="directGrantBtn" type="button">直接发放授权</button>
+        <button class="btn btn-ghost" id="refreshReqBtn" type="button">刷新列表</button>
+      </div>
+      <div id="reqList"></div>
+    </div>
+    <div class="access-card">
+      <h3>已发放授权</h3>
+      <div class="hint">作废后该授权码立即失效，对方在线会话也会被立即踢出（服务器实时同步）。</div>
+      <div id="grantList"></div>
+    </div>
+    <div class="access-card">
+      <h3>安全设置</h3>
+      <div class="hint">管理员口令用于登录管理后台，修改后旧口令立即失效。正式部署请启用 HTTPS。</div>
+      <div class="gate-actions" style="margin-top:0">
+        <button class="btn btn-ghost" id="changePassBtn" type="button">修改管理员口令</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 企业详情抽屉 -->
+<div id="scrim"></div>
+<aside id="drawer" aria-label="企业详情">
+  <div class="drawer-head">
+    <button class="drawer-close" id="drawerClose" aria-label="关闭详情">✕</button>
+    <div class="drawer-co">
+      <div class="co-avatar" id="dAvatar"></div>
+      <div style="min-width:0">
+        <h2 id="dName"></h2>
+        <div class="drawer-tags" id="dTags"></div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-body">
+    <p class="drawer-intro" id="dIntro"></p>
+    <div class="site-box" id="dSiteBox">
+      <div class="site-info"><b id="dSiteLabel"></b><span id="dSiteUrl"></span></div>
+      <a class="btn btn-primary btn-sm" id="dSiteBtn" target="_blank" rel="noopener noreferrer">进入招聘官网 ↗</a>
+    </div>
+    <div class="job-filters">
+      <select id="dCat" aria-label="按岗位类别筛选"><option value="">全部类别</option></select>
+      <select id="dType" aria-label="按招聘类型筛选"><option value="">全部类型</option></select>
+    </div>
+    <div class="job-count" id="dJobCount"></div>
+    <div id="dJobs"></div>
+    <p class="drawer-note" id="dNote"></p>
+  </div>
+</aside>
+
+<div id="modalWrap"><div class="modal" id="modalBox"></div></div>
+<div id="toasts"></div>
+
+<footer>
+  <div class="foot-inner">
+    <div><b>关于校招星图</b>按省份聚合全国校园招聘信息：地图热力总览 → 省份企业列表 → 岗位与官方投递入口。访问采用审批制，由管理员统一授权；岗位实时上架更新。</div>
+    <div><b>数据与免责声明</b>信息来自微信公众号、企业官网 / 上市公司公告、高校就业网等公开渠道聚合与人工维护，部分岗位为示例数据，不构成真实招聘承诺。地图边界数据来自公开 GeoJSON 并做简化，仅供示意，不作为标准地图使用。请通过企业官方渠道投递，谨防「付费内推、保录取」等招聘诈骗。</div>
+  </div>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
