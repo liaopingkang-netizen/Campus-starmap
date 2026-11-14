@@ -10,6 +10,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# 每日自动采集 + 自动下架过期岗位（00:00 UTC = 北京时间 08:00）
+[functions."daily-harvest"]
+  schedule = "0 0 * * *"
+
 # 所有 /api/* 请求交给无服务器函数处理（200 为内部重写，浏览器地址不变）
 [[redirects]]
   from = "/api/*"

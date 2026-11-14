@@ -211,6 +211,18 @@
         <tbody id="adminBody"></tbody>
       </table>
     </div>
+
+    <!-- 自动采集 -->
+    <div class="access-card" style="margin-top:18px">
+      <h3>🛰 自动采集 · 公开公告</h3>
+      <div class="hint">每天北京时间 08:00 自动从「中国公共招聘网·央企校招」等公开渠道采集最新校招公告，新公司进入下方待审核列表（不直接改动你审核过的数据）；同时自动下架已过期岗位。也可点「立即采集」手动触发。</div>
+      <div class="admin-stats" id="harvestStats"></div>
+      <div class="gate-actions" style="margin-top:0;margin-bottom:10px">
+        <button class="btn btn-primary" id="harvestRunBtn" type="button">立即采集</button>
+        <button class="btn btn-ghost" id="harvestRefreshBtn" type="button">刷新待审核</button>
+      </div>
+      <div id="harvestPending"></div>
+    </div>
   </section>
 
   <!-- 访问审批 -->
