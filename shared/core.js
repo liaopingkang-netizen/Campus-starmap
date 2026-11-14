@@ -3,7 +3,7 @@
  * 由 Netlify Function（Netlify Blobs 存储）与本地测试模拟器（文件存储）共同复用。
  * 通过注入的 store { get(key), set(key, value) } 读写持久化数据。
  */
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 const SESSION_TTL = 7 * 24 * 3600 * 1000;
 const MAX_BODY = 4 * 1024 * 1024;
@@ -405,4 +405,4 @@ function createCore({ store, MAP, SEED }) {
   return { handle, MAX_BODY };
 }
 
-module.exports = { createCore };
+export { createCore };

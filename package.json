@@ -2,6 +2,7 @@
   "name": "campus-starmap-netlify",
   "version": "1.0.0",
   "description": "校招星图 · Netlify 线上审批版：Netlify Functions + Netlify Blobs，按省份浏览中国校招企业，访问需管理员实时审批授权。",
+  "type": "module",
   "scripts": {
     "dev": "netlify dev",
     "deploy": "netlify deploy --prod",
