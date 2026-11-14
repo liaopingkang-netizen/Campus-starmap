@@ -380,6 +380,15 @@ function createCore({ store, MAP, SEED }) {
     ctx.db.companies = SEED.companies; addLog(ctx.db, '重置为初始收录数据'); ctx.dirty = true;
     return json(200, { ok: true });
   });
+  route('POST', '/api/admin/factory-reset', async (ctx) => {
+    const a = auth(ctx, 'admin'); if (a.err) return a.err;
+    ctx.db.adminHash = null; ctx.db.adminSalt = null;
+    ctx.db.companies = SEED.companies;
+    ctx.db.requests = []; ctx.db.grants = []; ctx.db.sessions = {};
+    ctx.db.log = [{ t: now(), m: '站点已重置为初始状态（管理员口令、授权与申请已清空）' }];
+    ctx.dirty = true;
+    return json(200, { ok: true });
+  });
   route('GET', '/api/admin/version', async (ctx) => {
     const a = auth(ctx, 'admin'); if (a.err) return a.err;
     return json(200, {
