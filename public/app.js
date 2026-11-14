@@ -154,7 +154,7 @@ async function refreshAdmin() {
       api('/api/admin/companies'), api('/api/admin/requests'), api('/api/admin/grants'), api('/api/admin/log'), api('/api/admin/harvest/pending')
     ]);
     state.adminCompanies = c.companies; state.requests = r.requests; state.grants = g.grants; state.log = l.log;
-    state.harvestPending = h.pending || []; state.harvestLast = h.last || null;
+    state.harvestAuto = h.autoAdded || []; state.harvestLast = h.last || null;
     if (state.view === 'admin') renderAdmin();
     if (state.view === 'access') renderAccess();
   } catch (e) { if (e.status === 401) exitToGate(); }
@@ -166,7 +166,7 @@ function startAdminPoll() {
     if (!isAdmin()) return;
     try {
       const v = await api('/api/admin/version');
-      const sig = v.updatedAt + '|' + v.requests + '|' + v.pending + '|' + v.grants + '|' + v.logTop + '|' + (v.harvestPending || 0) + '|' + (v.harvestLast || 0);
+      const sig = v.updatedAt + '|' + v.requests + '|' + v.pending + '|' + v.grants + '|' + v.logTop + '|' + (v.harvestAdded || 0) + '|' + (v.harvestLast || 0);
       if (sig !== lastSig) { lastSig = sig; await refreshAdmin(); await refreshContent(); }
     } catch (e) { if (e.status === 401) exitToGate(); }
   }, 8000);
@@ -274,13 +274,16 @@ function coCard(co) {
   const meta = el('div', 'co-meta');
   meta.appendChild(el('span', 'tag ' + natureTagClass(co.nature), co.nature));
   meta.appendChild(el('span', null, co.industry)); meta.appendChild(el('span', null, co.city));
+  if (co.autoAdded) meta.appendChild(el('span', 'tag t-src', '自动采集'));
   info.appendChild(meta); top.appendChild(av); top.appendChild(info); card.appendChild(top);
   const jobs = el('div', 'co-jobs');
   act.slice(0, 3).forEach(j => { const pill = el('span', 'job-pill', j.name); if (isNew(j.addedAt)) pill.style.borderColor = 'rgba(255,194,75,.55)'; jobs.appendChild(pill); });
   if (act.length > 3) jobs.appendChild(el('span', 'job-pill', '+' + (act.length - 3)));
+  if (!act.length && co.announcement) jobs.appendChild(el('span', 'job-pill', '📢 查看官方校招公告'));
   card.appendChild(jobs);
   const foot = el('div', 'co-foot');
-  foot.appendChild(el('b', null, String(act.length))); foot.appendChild(el('span', null, ' 个在招岗位'));
+  if (act.length) { foot.appendChild(el('b', null, String(act.length))); foot.appendChild(el('span', null, ' 个在招岗位')); }
+  else { foot.appendChild(el('b', null, '校招')); foot.appendChild(el('span', null, ' 公告已收录')); }
   foot.appendChild(veriTag(co)); foot.appendChild(el('span', 'co-arrow', '→'));
   card.appendChild(foot);
   card.addEventListener('click', () => openDrawer(co.id));
@@ -359,7 +362,19 @@ function renderDrawerJobs() {
   $('#dJobCount').textContent = '';
   $('#dJobCount').appendChild(el('b', null, String(jobs.length)));
   $('#dJobCount').appendChild(document.createTextNode(' 个在招岗位'));
-  if (!jobs.length) { box.appendChild(el('div', 'panel-empty', '暂无匹配的在招岗位')); return; }
+  if (!jobs.length) {
+    if (co.announcement && !state.dCat && !state.dType) {
+      const note = el('div', 'panel-empty');
+      note.appendChild(document.createTextNode('该公司校招公告已自动收录，具体岗位明细请查看官方公告：'));
+      note.appendChild(el('div', null, co.announcement.title));
+      const a = el('a', 'btn btn-primary btn-sm', '打开官方校招公告 ↗'); a.href = co.announcement.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.marginTop = '10px';
+      note.appendChild(a);
+      box.appendChild(note);
+    } else {
+      box.appendChild(el('div', 'panel-empty', '暂无匹配的在招岗位'));
+    }
+    return;
+  }
   jobs.forEach(j => {
     const card = el('div', 'job-card');
     const top = el('div', 'job-top'); top.appendChild(el('div', 'job-title', j.name));
@@ -546,71 +561,36 @@ function renderHarvest() {
   stats.textContent = '';
   const last = state.harvestLast;
   const mk = (label, val) => { const d = el('div', 'admin-stat'); d.appendChild(el('b', null, String(val))); d.appendChild(document.createTextNode(label)); return d; };
-  stats.appendChild(mk('待审核线索', (state.harvestPending || []).length));
+  stats.appendChild(mk('自动入库公司', (state.harvestAuto || []).length));
   stats.appendChild(mk('上次采集', last ? fmtTime(last.lastRun) : '尚未'));
   if (last) { stats.appendChild(mk('上次公告数', last.items || 0)); stats.appendChild(mk('上次下架过期', last.expired || 0)); }
   const box = $('#harvestPending'); box.textContent = '';
-  const list = state.harvestPending || [];
-  if (!list.length) { box.appendChild(el('div', 'panel-empty', '暂无待审核线索。点「立即采集」或等待每日自动采集。')); return; }
+  const list = state.harvestAuto || [];
+  if (!list.length) { box.appendChild(el('div', 'panel-empty', '暂无自动入库记录。点「立即采集」或等待每日 08:00 自动采集。')); return; }
   list.forEach(p => {
+    const co = state.adminCompanies.find(c => c.id === p.id);
     const row = el('div', 'access-row');
     const who = el('div', 'access-who');
-    who.appendChild(el('b', null, p.company));
+    const nameLine = el('b', null, p.company + ' ');
+    nameLine.appendChild(el('span', 'chip c-new', '自动'));
+    if (p.inferred) nameLine.appendChild(el('span', 'chip', '省份推断'));
+    who.appendChild(nameLine);
+    who.appendChild(el('div', 'sub', (state.provName[p.code] || '') + ' · ' + (p.source || '') + (p.date ? ' · ' + p.date : '')));
     who.appendChild(el('div', 'sub', p.title));
-    who.appendChild(el('div', 'sub', (p.source || '') + (p.date ? ' · ' + p.date : '') + ' · ' + p.url));
     row.appendChild(who);
     const acts = el('div', 'access-actions');
-    const ok = el('button', 'btn btn-primary btn-sm', '采纳'); ok.type = 'button';
-    ok.addEventListener('click', () => openApprovePending(p));
+    if (co) { const edit = el('button', 'btn btn-ghost btn-sm', '编辑'); edit.type = 'button'; edit.addEventListener('click', () => openCompanyForm(co)); acts.appendChild(edit); }
     const link = el('a', 'btn btn-ghost btn-sm', '查看公告'); link.href = p.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    const no = el('button', 'btn btn-danger btn-sm', '忽略'); no.type = 'button';
-    no.addEventListener('click', async () => { try { await api('/api/admin/harvest/dismiss', { method: 'POST', body: { id: p.id } }); await refreshAdmin(); toast('已忽略'); } catch (e) { toast(e.message, 'err'); } });
-    acts.appendChild(ok); acts.appendChild(link); acts.appendChild(no);
+    acts.appendChild(link);
     row.appendChild(acts); box.appendChild(row);
   });
-}
-function openApprovePending(p) {
-  const box = modalBase('采纳采集线索 · ' + p.company, true);
-  box.appendChild(el('p', null, '来源：' + (p.source || '') + '《' + p.title + '》。确认省份后即可入库；可选同时添加一个岗位。'));
-  const grid = el('div', 'form-grid');
-  const fName = textInput('企业名称', p.company);
-  const fProv = selectInput(state.MAP.provs.map(x => ({ value: String(x.c), label: x.n })), 11);
-  const fNature = selectInput(state.META.NATURES, '央企/国企');
-  const fIndustry = selectInput(state.META.INDUSTRIES, '互联网');
-  const fCity = textInput('总部城市', '全国');
-  grid.appendChild(formRow('企业名称 *', fName)); grid.appendChild(formRow('所在省份 *', fProv));
-  grid.appendChild(formRow('企业性质', fNature)); grid.appendChild(formRow('所属行业', fIndustry));
-  grid.appendChild(formRow('总部城市', fCity));
-  box.appendChild(grid);
-  box.appendChild(el('p', null, '可选：同时添加一个岗位（留空岗位名则只建企业）'));
-  const jgrid = el('div', 'form-grid');
-  const jName = textInput('岗位名称（可选）', '');
-  const jDdl = el('input', 'form-input'); jDdl.type = 'date'; jDdl.value = fmtDate(Date.now() + 90 * 86400000);
-  const jCat = selectInput(state.META.CATS, '研发');
-  const jCity = textInput('工作城市', '');
-  jgrid.appendChild(formRow('岗位名称', jName)); jgrid.appendChild(formRow('截止日期', jDdl));
-  jgrid.appendChild(formRow('岗位类别', jCat)); jgrid.appendChild(formRow('工作城市', jCity));
-  box.appendChild(jgrid);
-  const err = el('div', 'form-err'); box.appendChild(err);
-  const row = el('div', 'btn-row');
-  const save = el('button', 'btn btn-primary', '确认采纳'); save.type = 'button';
-  save.addEventListener('click', async () => {
-    const body = { id: p.id, name: fName.value.trim(), code: +fProv.value, nature: fNature.value, industry: fIndustry.value, city: fCity.value.trim() };
-    if (jName.value.trim()) body.job = { name: jName.value.trim(), ddl: jDdl.value, cat: jCat.value, city: jCity.value.trim() || fCity.value.trim() };
-    save.disabled = true;
-    try { await api('/api/admin/harvest/approve', { method: 'POST', body }); closeModal(); await afterAdminChange(); toast('已采纳入库：' + body.name, 'good'); }
-    catch (e) { err.textContent = e.message; save.disabled = false; }
-  });
-  const cancel = el('button', 'btn btn-ghost', '取消'); cancel.type = 'button'; cancel.addEventListener('click', closeModal);
-  row.appendChild(save); row.appendChild(cancel); box.appendChild(row);
-  $('#modalWrap').classList.add('on');
 }
 async function runHarvest() {
   const btn = $('#harvestRunBtn'); btn.disabled = true; btn.textContent = '采集中…';
   try {
     const r = await api('/api/admin/harvest/run', { method: 'POST' });
     await afterAdminChange();
-    toast('采集完成：公告 ' + r.items + ' 条，新增待审核 ' + r.added + '，下架过期 ' + r.expired, 'good');
+    toast('采集完成：公告 ' + r.items + ' 条，自动入库 ' + r.added + ' 家，下架过期 ' + r.expired, 'good');
   } catch (e) { toast('采集失败：' + e.message, 'err'); }
   btn.disabled = false; btn.textContent = '立即采集';
 }
@@ -970,7 +950,7 @@ function bindUI() {
   $('#exportBtn').addEventListener('click', exportData);
   $('#resetBtn').addEventListener('click', () => showConfirm('重置初始数据', '将清除全部岗位修改（新增 / 编辑 / 上下架），恢复到初始收录数据。访问授权不受影响。确定重置？', async () => { try { await api('/api/admin/reset', { method: 'POST' }); state.selected.clear(); await afterAdminChange(); toast('已恢复初始数据', 'good'); } catch (e) { toast(e.message, 'err'); } }));
   $('#harvestRunBtn').addEventListener('click', runHarvest);
-  $('#harvestRefreshBtn').addEventListener('click', async () => { await refreshAdmin(); toast('已刷新采集数据', 'good'); });
+  $('#harvestRefreshBtn').addEventListener('click', async () => { await refreshAdmin(); toast('已刷新自动入库记录', 'good'); });
   $('#selAll').addEventListener('change', e => { state.selected.clear(); if (e.target.checked) adminRows().forEach(r => state.selected.add(r.j.id)); renderAdmin(); });
   $('#bulkOn').addEventListener('click', () => bulkSet('on'));
   $('#bulkOff').addEventListener('click', () => bulkSet('off'));

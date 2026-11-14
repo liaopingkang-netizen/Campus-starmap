@@ -48,13 +48,14 @@ function createCore({ store, MAP, SEED }) {
     }
     db.requests = db.requests || []; db.grants = db.grants || [];
     db.sessions = db.sessions || {}; db.log = db.log || [];
-    db.pending = db.pending || []; db.harvest = db.harvest || null;
+    db.autoAdded = db.autoAdded || []; db.harvest = db.harvest || null;
     return db;
   }
   async function saveDb(db) { await store.set(DB_KEY, db); }
   function addLog(db, m) { db.log.unshift({ t: now(), m }); if (db.log.length > 300) db.log.length = 300; }
   function activeJobs(co) { return co.jobs.filter(j => j.status !== 'off' && !isExpired(j)); }
-  function publicCompanies(db) { return db.companies.filter(c => activeJobs(c).length > 0); }
+  function isPublic(co) { return activeJobs(co).length > 0 || !!co.announcement; }
+  function publicCompanies(db) { return db.companies.filter(isPublic); }
   function findCo(db, id) { return db.companies.find(c => c.id === id); }
   function findJob(db, id) { for (const c of db.companies) { const j = c.jobs.find(x => x.id === id); if (j) return { co: c, job: j }; } return null; }
   function findGrant(db, id) { return db.grants.find(g => g.id === id); }
@@ -64,6 +65,7 @@ function createCore({ store, MAP, SEED }) {
     return {
       id: c.id, code: c.code, name: c.name, nature: c.nature, industry: c.industry, city: c.city, url: c.url,
       veri: c.veri, intro: c.intro, channel: c.channel, color: c.color, addedAt: c.addedAt, updatedAt: c.updatedAt,
+      announcement: c.announcement || null, autoAdded: !!c.autoAdded, autoProvince: !!c.autoProvince,
       jobs: c.jobs.map(j => ({ id: j.id, coId: j.coId, name: j.name, cat: j.cat, city: j.city, edu: j.edu, type: j.type, ddl: j.ddl, hot: j.hot, applyUrl: j.applyUrl || '', status: j.status, addedAt: j.addedAt, updatedAt: j.updatedAt }))
     };
   }
@@ -387,7 +389,7 @@ function createCore({ store, MAP, SEED }) {
     ctx.db.adminHash = null; ctx.db.adminSalt = null;
     ctx.db.companies = SEED.companies;
     ctx.db.requests = []; ctx.db.grants = []; ctx.db.sessions = {};
-    ctx.db.pending = []; ctx.db.harvest = null;
+    ctx.db.autoAdded = []; ctx.db.harvest = null;
     ctx.db.log = [{ t: now(), m: '站点已重置为初始状态（管理员口令、授权与申请已清空）' }];
     ctx.dirty = true;
     return json(200, { ok: true });
@@ -398,11 +400,11 @@ function createCore({ store, MAP, SEED }) {
       updatedAt: ctx.db.companies.reduce((t, c) => Math.max(t, c.updatedAt || 0, ...c.jobs.map(j => j.updatedAt || 0)), 0),
       requests: ctx.db.requests.length, pending: ctx.db.requests.filter(r => r.status === 'pending').length,
       grants: ctx.db.grants.filter(g => g.status === 'active').length, logTop: ctx.db.log.length ? ctx.db.log[0].t : 0,
-      harvestPending: (ctx.db.pending || []).length, harvestLast: ctx.db.harvest ? ctx.db.harvest.lastRun : 0
+      harvestAdded: (ctx.db.autoAdded || []).length, harvestLast: ctx.db.harvest ? ctx.db.harvest.lastRun : 0
     });
   });
 
-  /* ---- 自动采集管理 ---- */
+  /* ---- 全自动采集 ---- */
   route('POST', '/api/admin/harvest/run', async (ctx) => {
     const a = auth(ctx, 'admin'); if (a.err) return a.err;
     const { items, errors } = await collectAll();
@@ -413,45 +415,13 @@ function createCore({ store, MAP, SEED }) {
       if (j.status !== 'off' && new Date(j.ddl + 'T00:00:00') < today) { j.status = 'off'; j.updatedAt = now(); expired++; }
     }
     ctx.db.harvest = { lastRun: now(), items: items.length, ...merged, errors, expired };
-    addLog(ctx.db, `手动采集：公告 ${items.length} 条（新增待审核 ${merged.added} / 补充链接 ${merged.linked}），下架过期岗位 ${expired} 个`);
+    addLog(ctx.db, `采集：公告 ${items.length} 条，自动入库新公司 ${merged.added} 家 / 补充链接 ${merged.linked}，下架过期岗位 ${expired} 个`);
     ctx.dirty = true;
     return json(200, ctx.db.harvest);
   });
   route('GET', '/api/admin/harvest/pending', async (ctx) => {
     const a = auth(ctx, 'admin'); if (a.err) return a.err;
-    return json(200, { pending: ctx.db.pending || [], last: ctx.db.harvest || null });
-  });
-  route('POST', '/api/admin/harvest/approve', async (ctx) => {
-    const a = auth(ctx, 'admin'); if (a.err) return a.err;
-    const b = ctx.body || {};
-    const p = (ctx.db.pending || []).find(x => x.id === b.id);
-    if (!p) return json(404, { error: '待审核条目不存在' });
-    if (!PROV_NAME[+b.code]) return json(400, { error: '请选择有效省份' });
-    const name = String(b.name || p.company).trim();
-    if (ctx.db.companies.some(c => c.name === name)) return json(409, { error: '已存在同名企业，请直接编辑该企业' });
-    const co = {
-      id: randId('c_'), code: +b.code, name, nature: pickEnum(b.nature, META.NATURES, '央企/国企'),
-      industry: pickEnum(b.industry, META.INDUSTRIES, '互联网'), city: String(b.city || '').trim() || '全国',
-      url: p.url, veri: 2, intro: String(b.intro || '').trim() || ('来源：' + p.source + '《' + p.title + '》'),
-      channel: p.source, color: META.AV_COLORS[name.charCodeAt(0) % META.AV_COLORS.length],
-      addedAt: now(), updatedAt: now(), jobs: []
-    };
-    // 可选：同时创建一个岗位
-    if (b.job && b.job.name && /^\d{4}-\d{2}-\d{2}$/.test(String(b.job.ddl || ''))) {
-      co.jobs.push({ id: randId('j_'), coId: co.id, name: String(b.job.name).trim(), cat: pickEnum(b.job.cat, META.CATS, '研发'), city: String(b.job.city || co.city), edu: pickEnum(b.job.edu, META.EDUS, '本科'), type: pickEnum(b.job.type, META.TYPES, '秋招'), ddl: b.job.ddl, hot: false, applyUrl: '', status: 'on', addedAt: now(), updatedAt: now() });
-    }
-    ctx.db.companies.push(co);
-    ctx.db.pending = ctx.db.pending.filter(x => x.id !== p.id);
-    addLog(ctx.db, '采纳采集线索：' + name + '（' + (PROV_NAME[co.code] || '') + '）');
-    ctx.dirty = true;
-    return json(200, { company: sanitizeCompany(co) });
-  });
-  route('POST', '/api/admin/harvest/dismiss', async (ctx) => {
-    const a = auth(ctx, 'admin'); if (a.err) return a.err;
-    const id = (ctx.body || {}).id;
-    ctx.db.pending = (ctx.db.pending || []).filter(x => x.id !== id);
-    ctx.dirty = true;
-    return json(200, { ok: true });
+    return json(200, { autoAdded: ctx.db.autoAdded || [], last: ctx.db.harvest || null });
   });
 
   /* ---- 请求分发 ---- */

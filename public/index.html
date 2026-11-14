@@ -212,14 +212,14 @@
       </table>
     </div>
 
-    <!-- 自动采集 -->
+    <!-- 全自动采集 -->
     <div class="access-card" style="margin-top:18px">
-      <h3>🛰 自动采集 · 公开公告</h3>
-      <div class="hint">每天北京时间 08:00 自动从「中国公共招聘网·央企校招」等公开渠道采集最新校招公告，新公司进入下方待审核列表（不直接改动你审核过的数据）；同时自动下架已过期岗位。也可点「立即采集」手动触发。</div>
+      <h3>🛰 全自动采集 · 公开公告</h3>
+      <div class="hint">每天北京时间 08:00 自动从「中国公共招聘网·央企校招」采集最新公告，<b>新公司自动入库上架</b>（省份自动推断，标注"自动采集"），已有公司自动补公告链接，过期岗位自动下架——全程无需操作。下方是最近自动入库的公司，点「编辑」可改省份/补岗位。也可点「立即采集」手动触发。</div>
       <div class="admin-stats" id="harvestStats"></div>
       <div class="gate-actions" style="margin-top:0;margin-bottom:10px">
         <button class="btn btn-primary" id="harvestRunBtn" type="button">立即采集</button>
-        <button class="btn btn-ghost" id="harvestRefreshBtn" type="button">刷新待审核</button>
+        <button class="btn btn-ghost" id="harvestRefreshBtn" type="button">刷新记录</button>
       </div>
       <div id="harvestPending"></div>
     </div>

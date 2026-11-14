@@ -1,6 +1,6 @@
 /* 校招星图 · 每日定时任务（Netlify Scheduled Function）
  * 每天 00:00 UTC（北京时间 08:00）自动执行：
- *  1. 采集公开公告（中国公共招聘网央企校招专栏）→ 新公司入"待审核"，已有公司补链接
+ *  1. 采集公开公告（中国公共招聘网央企校招专栏）→ 新公司全自动入库上架（省份自动推断），已有公司补链接
  *  2. 自动下架已过期岗位（截止日期早于今天）
  * 调度在 netlify.toml 的 [functions."daily-harvest"] 配置。
  */
@@ -12,9 +12,9 @@ export default async (req) => {
   const store = getStore({ name: 'starmap', consistency: 'strong' });
   let db = await store.get('db', { type: 'json' });
   if (!db || !db.companies) {
-    db = { adminHash: null, adminSalt: null, companies: SEED.companies, requests: [], grants: [], sessions: {}, pending: [], harvest: null, log: [], createdAt: Date.now() };
+    db = { adminHash: null, adminSalt: null, companies: SEED.companies, requests: [], grants: [], sessions: {}, autoAdded: [], harvest: null, log: [], createdAt: Date.now() };
   }
-  db.pending = db.pending || [];
+  db.autoAdded = db.autoAdded || [];
   db.log = db.log || [];
   const now = Date.now();
   const today = new Date(new Date().toDateString());
@@ -38,7 +38,7 @@ export default async (req) => {
   }
 
   db.harvest = { lastRun: now, ...harvest, expired };
-  db.log.unshift({ t: now, m: `每日自动任务：采集公告 ${harvest.items} 条（新增待审核 ${harvest.added} / 补充链接 ${harvest.linked}），自动下架过期岗位 ${expired} 个` });
+  db.log.unshift({ t: now, m: `每日自动任务：采集公告 ${harvest.items} 条，自动入库新公司 ${harvest.added} 家 / 补充链接 ${harvest.linked}，自动下架过期岗位 ${expired} 个` });
   if (db.log.length > 300) db.log.length = 300;
   await store.setJSON('db', db);
 
